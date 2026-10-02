@@ -28,14 +28,25 @@ class Store:
         return None
 
     def overview(self) -> dict[str, object]:
+        from app.services.gauge import GaugeService
+
+        gauge_service = GaugeService()
         modules: list[dict[str, object]] = []
         for name in self.module_names():
             rows = self.rows(name)
+            if name == "gauge":
+                # 压力表的待处理/异常口径以统一判定为准（已停用不计待处理）。
+                presented = [gauge_service.get_entry(int(row["id"])) for row in rows]
+                pending = sum(1 for row in presented if row and row.get("pending"))
+                abnormal = sum(1 for row in presented if row and row.get("abnormal"))
+            else:
+                pending = sum(1 for row in rows if row.get("pending"))
+                abnormal = sum(1 for row in rows if row.get("abnormal"))
             modules.append({
                 "name": name,
                 "created": len(rows),
-                "pending": sum(1 for row in rows if row.get("pending")),
-                "abnormal": sum(1 for row in rows if row.get("abnormal")),
+                "pending": pending,
+                "abnormal": abnormal,
             })
         cards = [
             {"label": "业务模块", "value": len(modules)},

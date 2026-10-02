@@ -5,14 +5,25 @@
 """
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import ROUTERS
+from app.services.gauge import gauge_service
 from app.store import store
 
-app = FastAPI(title="特种设备安全管理平台", version="1.0.0")
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    # 判定标准可能随版本调整：启动时先按现行规则把历史数据重判一遍，避免旧结论与新口径并存。
+    gauge_service.rejudge_all()
+    yield
+
+
+app = FastAPI(title="特种设备安全管理平台", version="1.0.0", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
